@@ -1,0 +1,33 @@
+name: "Handle Callbacks"
+on:
+  repository_dispatch:
+    types: [tg-approve, tg-regenerate]
+
+permissions:
+  contents: write           # needed so the workflow can push the updated state file
+
+jobs:
+  handle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install requests openrouter python-dotenv
+      - run: python handle_callback.py
+        env:
+          EVENT: ${{ github.event.action }}
+          COMBO_IDX: ${{ github.event.client_payload.combo_idx }}
+          CHAT_ID: ${{ github.event.client_payload.chat_id }}
+          MESSAGE_ID: ${{ github.event.client_payload.message_id }}
+          TEXT: ${{ github.event.client_payload.text }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      - run: |
+          git config user.name "content-pilot-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add post_history.jsonl counter.json
+          git commit -m "approved post" || echo "nothing to commit"
+          git push
